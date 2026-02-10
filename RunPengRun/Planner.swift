@@ -36,8 +36,7 @@ struct Planner {
             id: UUID(),
             date: date.startOfDay,
             difficultyLevel: intensity.level,
-            exercises: exercises,
-            completed: false
+            exercises: exercises
         )
     }
 

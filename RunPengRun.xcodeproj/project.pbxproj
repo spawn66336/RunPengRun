@@ -13,6 +13,7 @@
 		1C67716D01E44A919CB9B13D /* RunPengRunApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A39385E58561418C992801B7 /* RunPengRunApp.swift */; };
 		D93CC047C1B045F59F6622B3 /* Planner.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF163B7570EB42D1A374DA10 /* Planner.swift */; };
 		9AB04A13B76245BBA8037547 /* MachineCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A82FF48FA2EC41D3B1911FDA /* MachineCatalog.swift */; };
+		B2C3D4E5F6A7B8C9D0E1F2A3 /* StatsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6A7B8C9D0E1F2 /* StatsView.swift */; };
 		DB7674330F96439088CFD80E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3525EF69865B4167AE798B9F /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -25,6 +26,7 @@
 		A82FF48FA2EC41D3B1911FDA /* MachineCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MachineCatalog.swift; sourceTree = "<group>"; };
 		EF163B7570EB42D1A374DA10 /* Planner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Planner.swift; sourceTree = "<group>"; };
 		EF9410F769324521BC013555 /* Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Store.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F6A7B8C9D0E1F2 /* StatsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatsView.swift; sourceTree = "<group>"; };
 		F35467C00C37438F865761EB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -63,6 +65,7 @@
 				EF9410F769324521BC013555 /* Store.swift */,
 				EF163B7570EB42D1A374DA10 /* Planner.swift */,
 				A82FF48FA2EC41D3B1911FDA /* MachineCatalog.swift */,
+				A1B2C3D4E5F6A7B8C9D0E1F2 /* StatsView.swift */,
 				3525EF69865B4167AE798B9F /* Assets.xcassets */,
 				F35467C00C37438F865761EB /* Info.plist */,
 			);
@@ -143,6 +146,7 @@
 				110390C22CA6403CB7EA9849 /* Store.swift in Sources */,
 				D93CC047C1B045F59F6622B3 /* Planner.swift in Sources */,
 				9AB04A13B76245BBA8037547 /* MachineCatalog.swift in Sources */,
+				B2C3D4E5F6A7B8C9D0E1F2A3 /* StatsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

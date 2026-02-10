@@ -125,51 +125,6 @@ final class LocalStore: ObservableObject {
         }
     }
 
-        }
-        state.progress.missedExercises = missed
-        
-        guard let profile = state.profile else { return }
-        let deload = Planner.isDeloadWeek(for: profile, referenceDate: date)
-        
-        for exercise in session.exercises {
-            let group = MachineCatalog.info(for: exercise.machine)?.group ?? .chest
-            
-            // Only progress weight if user did at least one set
-            if exercise.completedSets > 0 {
-                var nextLoad = Planner.progressedLoad(current: exercise.recommendedLoadKg, goal: profile.goal, isDeload: deload, group: group)
-                
-                if let feedback = rpeFeedback, feedback < 6.0 {
-                    let increment = Planner.progressedLoad(current: 0, goal: profile.goal, isDeload: false, group: group)
-                    nextLoad += increment
-                }
-                
-                state.machineLoads[exercise.machine] = nextLoad
-            }
-            // Always remember reps
-            state.machineReps[exercise.machine] = exercise.reps
-        }
-    }
-
-        }
-        state.progress.missedExercises = missed
-        
-        guard let profile = state.profile else { return }
-        let deload = Planner.isDeloadWeek(for: profile, referenceDate: date)
-        
-        for exercise in session.exercises {
-            let group = MachineCatalog.info(for: exercise.machine)?.group ?? .chest
-            var nextLoad = Planner.progressedLoad(current: exercise.recommendedLoadKg, goal: profile.goal, isDeload: deload, group: group)
-            
-            if let feedback = rpeFeedback, feedback < 6.0 {
-                let increment = Planner.progressedLoad(current: 0, goal: profile.goal, isDeload: false, group: group)
-                nextLoad += increment
-            }
-            
-            state.machineLoads[exercise.machine] = nextLoad
-            state.machineReps[exercise.machine] = exercise.reps
-        }
-    }
-
     func updateExercise(on date: Date, exerciseId: UUID, update: (inout WorkoutExercise) -> Void) {
         guard var session = state.sessions.session(on: date) else { return }
         guard let index = session.exercises.firstIndex(where: { $0.id == exerciseId }) else { return }

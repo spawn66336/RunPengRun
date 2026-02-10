@@ -26,10 +26,22 @@ struct ContentView: View {
     @EnvironmentObject private var store: LocalStore
 
     var body: some View {
-        NavigationStack {
-            if let profile = store.state.profile {
-                HomeView(profile: profile)
-            } else {
+        if let profile = store.state.profile {
+            TabView {
+                NavigationStack {
+                    HomeView(profile: profile)
+                }
+                .tabItem {
+                    Label("计划", systemImage: "calendar")
+                }
+
+                StatsView()
+                    .tabItem {
+                        Label("统计", systemImage: "chart.xyaxis.line")
+                    }
+            }
+        } else {
+            NavigationStack {
                 OnboardingView()
             }
         }
@@ -483,7 +495,6 @@ struct HomeView: View {
                 .background(Color.orange.opacity(0.1))
                         .clipShape(Capsule())
                 }
-            }
 
             Divider()
             
@@ -786,6 +797,18 @@ struct HomeView: View {
         return (0..<7).compactMap { day in
             calendar.date(byAdding: .day, value: day, to: monday)
         }
+    }
+
+    private func calculateProgress(for session: WorkoutSession) -> Double {
+        let totalSets = Double(session.exercises.reduce(0) { $0 + $1.sets })
+        let completedSets = Double(session.exercises.reduce(0) { $0 + $1.completedSets })
+        return totalSets > 0 ? completedSets / totalSets : 0
+    }
+
+    private func progressColor(_ progress: Double) -> Color {
+        if progress >= 1.0 { return .green }
+        if progress >= 0.5 { return .blue }
+        return .orange
     }
 }
 

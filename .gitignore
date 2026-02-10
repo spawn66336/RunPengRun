@@ -13,6 +13,7 @@ xcuserdata/
 
 ## Build generated
 build/
+build_output/
 DerivedData/
 
 ## Obj-C/Swift specific
