@@ -4,6 +4,8 @@ import UserNotifications
 
 final class LocalStore: ObservableObject {
     @Published private(set) var state: AppState
+    
+    let newPRSubject = PassthroughSubject<(String, Double), Never>()
 
     private let fileURL: URL
     private var cancellables = Set<AnyCancellable>()
@@ -111,6 +113,12 @@ final class LocalStore: ObservableObject {
             
             // Only progress weight if user did at least one set
             if exercise.completedSets > 0 {
+                let currentPR = state.progress.personalRecords[exercise.machine] ?? 0
+                if exercise.recommendedLoadKg > currentPR {
+                    state.progress.personalRecords[exercise.machine] = exercise.recommendedLoadKg
+                    newPRSubject.send((exercise.name, exercise.recommendedLoadKg))
+                }
+                
                 var nextLoad = Planner.progressedLoad(current: exercise.recommendedLoadKg, goal: profile.goal, isDeload: deload, group: group)
                 
                 if let feedback = rpeFeedback, feedback < 6.0 {

@@ -226,6 +226,8 @@ struct WorkoutSession: Codable, Identifiable {
     var date: Date
     var difficultyLevel: Int
     var exercises: [WorkoutExercise]
+    var warmup: [String]?
+    
     var completed: Bool {
         guard !exercises.isEmpty else { return false }
         let totalSets = exercises.reduce(0) { $0 + $1.sets }
@@ -238,7 +240,38 @@ struct ProgressState: Codable {
     var totalSessions: Int
     var level: Int
     var lastSessionDate: Date?
-    var missedExercises: [String] = [] // List of machine IDs skipped in the last relevant session
+    var missedExercises: [String] = []
+    var personalRecords: [String: Double] = [:]
+    
+    init(totalSessions: Int, level: Int, lastSessionDate: Date?, missedExercises: [String] = [], personalRecords: [String: Double] = [:]) {
+        self.totalSessions = totalSessions
+        self.level = level
+        self.lastSessionDate = lastSessionDate
+        self.missedExercises = missedExercises
+        self.personalRecords = personalRecords
+    }
+    
+    private enum CodingKeys: String, CodingKey {
+        case totalSessions, level, lastSessionDate, missedExercises, personalRecords
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        totalSessions = try container.decode(Int.self, forKey: .totalSessions)
+        level = try container.decode(Int.self, forKey: .level)
+        lastSessionDate = try container.decodeIfPresent(Date.self, forKey: .lastSessionDate)
+        missedExercises = try container.decodeIfPresent([String].self, forKey: .missedExercises) ?? []
+        personalRecords = try container.decodeIfPresent([String: Double].self, forKey: .personalRecords) ?? [:]
+    }
+    
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(totalSessions, forKey: .totalSessions)
+        try container.encode(level, forKey: .level)
+        try container.encodeIfPresent(lastSessionDate, forKey: .lastSessionDate)
+        try container.encode(missedExercises, forKey: .missedExercises)
+        try container.encode(personalRecords, forKey: .personalRecords)
+    }
 }
 
 struct AppState: Codable {

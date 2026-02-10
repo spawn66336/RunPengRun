@@ -58,6 +58,28 @@ struct StatsView: View {
         let count: Int
     }
     
+    private struct Achievement: Identifiable {
+        let id = UUID()
+        let title: String
+        let description: String
+        let icon: String
+        let unlocked: Bool
+    }
+    
+    private var achievements: [Achievement] {
+        let totalSessions = store.state.progress.totalSessions
+        let level = store.state.progress.level
+        
+        return [
+            Achievement(title: "初出茅庐", description: "完成第1次训练", icon: "figure.walk", unlocked: totalSessions >= 1),
+            Achievement(title: "坚持不懈", description: "累计训练10次", icon: "figure.run", unlocked: totalSessions >= 10),
+            Achievement(title: "健身达人", description: "累计训练50次", icon: "figure.strengthtraining.traditional", unlocked: totalSessions >= 50),
+            Achievement(title: "超凡大师", description: "累计训练100次", icon: "trophy.fill", unlocked: totalSessions >= 100),
+            Achievement(title: "力量觉醒", description: "等级达到 Lv.5", icon: "bolt.fill", unlocked: level >= 5),
+            Achievement(title: "钢铁之躯", description: "等级达到 Lv.20", icon: "dumbbell.fill", unlocked: level >= 20)
+        ]
+    }
+    
     private var consistencyData: [WeeklyData] {
         var counts: [Date: Int] = [:]
         let calendar = Calendar.current
@@ -78,6 +100,35 @@ struct StatsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
+                    
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("成就徽章")
+                            .font(.headline)
+                        
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 16) {
+                            ForEach(achievements) { item in
+                                VStack(spacing: 8) {
+                                    Image(systemName: item.icon)
+                                        .font(.title)
+                                        .foregroundStyle(item.unlocked ? Color.orange : Color.gray)
+                                        .frame(width: 60, height: 60)
+                                        .background(item.unlocked ? Color.orange.opacity(0.1) : Color(uiColor: .secondarySystemBackground))
+                                        .clipShape(Circle())
+                                        .overlay(
+                                            Circle()
+                                                .stroke(item.unlocked ? Color.orange.opacity(0.5) : Color.clear, lineWidth: 2)
+                                        )
+                                    
+                                    Text(item.title)
+                                        .font(.caption.bold())
+                                        .foregroundStyle(item.unlocked ? .primary : .secondary)
+                                        .multilineTextAlignment(.center)
+                                }
+                                .opacity(item.unlocked ? 1.0 : 0.6)
+                            }
+                        }
+                    }
+                    .modernCard()
                     
                     VStack(alignment: .leading, spacing: 16) {
                         HStack {

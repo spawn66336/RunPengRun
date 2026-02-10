@@ -48,6 +48,433 @@ struct ContentView: View {
     }
 }
 
+// MARK: - RPEGuideView (Merged)
+struct RPEGuideView: View {
+    @Environment(\.dismiss) var dismiss
+    
+    let rpeLevels: [(level: Double, title: String, description: String, color: Color)] = [
+        (10.0, "极限 (Failure)", "无法再多做一个动作，甚至无法维持标准姿势。", .red),
+        (9.0, "极累 (1 RIR)", "还能标准完成最后一个动作，但绝对做不了两个。", .orange),
+        (8.0, "很累 (2 RIR)", "还能完成2个动作。通常是训练组的推荐强度。", .yellow),
+        (7.0, "累 (3 RIR)", "还能完成3个动作。移动速度开始变慢。", .green),
+        (6.0, "有些累 (4 RIR)", "还能做4个左右。适合爆发力训练。", .blue),
+        (5.0, "轻松", "还能做5个以上。通常用于热身。", .gray)
+    ]
+    
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Text("RPE (Rating of Perceived Exertion) 是自觉运动强度量表，用于衡量你在训练中的费力程度。\n\nRIR (Reps In Reserve) 是保留次数，即“还能做几个”。")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 16, trailing: 16))
+                }
+                
+                ForEach(rpeLevels, id: \.level) { item in
+                    HStack(spacing: 16) {
+                        Text("\(Int(item.level))")
+                            .font(.system(.title2, design: .rounded).bold())
+                            .foregroundStyle(.white)
+                            .frame(width: 50, height: 50)
+                            .background(item.color)
+                            .clipShape(Circle())
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(item.title)
+                                .font(.headline)
+                            Text(item.description)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+            }
+            .navigationTitle("RPE 强度对照表")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("关闭") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+}
+
+// MARK: - MachineWeightHelperView
+struct MachineWeightHelperView: View {
+    @Binding var targetWeight: Double
+    var machineName: String
+    var loadType: MachineLoadType
+    @Environment(\.dismiss) var dismiss
+    
+    @State private var baseWeight: Double = 0.0
+    @State private var splitSides: Bool = false
+    
+    let plates: [Double] = [25, 20, 15, 10, 5, 2.5, 1.25]
+    
+    var weightToLoad: Double {
+        max(0, targetWeight - baseWeight)
+    }
+    
+    var weightPerSide: Double {
+        splitSides ? weightToLoad / 2.0 : weightToLoad
+    }
+    
+    var calculatedPlates: [(weight: Double, count: Int)] {
+        var remaining = weightPerSide
+        var result: [(Double, Int)] = []
+        
+        for plate in plates {
+            let count = Int(remaining / plate)
+            if count > 0 {
+                result.append((plate, count))
+                remaining -= Double(count) * plate
+            }
+        }
+        return result
+    }
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(machineName)
+                            .font(.headline)
+                        
+                        switch loadType {
+                        case .plateLoaded:
+                            Text("计算挂片式器械所需的配重片组合")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        case .stack(let increment):
+                            Text("插片式配重 (每格 \(String(format: "%.1f", increment)) kg)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 8, trailing: 16))
+                }
+                
+                Section("设置") {
+                    HStack {
+                        Text("目标总重量")
+                        Spacer()
+                        TextField("kg", value: $targetWeight, format: .number)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
+                            .frame(width: 100)
+                    }
+                    
+                    if case .plateLoaded = loadType {
+                        HStack {
+                            Text("器械初始阻力")
+                            Spacer()
+                            TextField("0", value: $baseWeight, format: .number)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 100)
+                        }
+                        
+                        Toggle("双侧均分模式", isOn: $splitSides)
+                            .tint(.blue)
+                        if splitSides {
+                            Text("适用于倒蹬机、悍马机等左右对称挂片的器械")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                
+                switch loadType {
+                case .plateLoaded:
+                    plateLoadedView
+                case .stack(let increment):
+                    stackView(increment: increment)
+                }
+            }
+            .navigationTitle("配重助手")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("完成") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+    
+    @ViewBuilder
+    var plateLoadedView: some View {
+        Section(splitSides ? "单侧需要挂片" : "总共需要挂片") {
+            if weightPerSide <= 0 {
+                Text("无需挂片")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(calculatedPlates, id: \.weight) { item in
+                    HStack {
+                        Circle()
+                            .fill(plateColor(item.weight))
+                            .frame(width: 30, height: 30)
+                            .overlay(
+                                Text("\(Int(item.weight))")
+                                    .font(.caption2)
+                                    .foregroundStyle(.white)
+                            )
+                        
+                        Text("\(item.weight.formatted()) kg")
+                        Spacer()
+                        Text("x \(item.count)")
+                            .bold()
+                    }
+                }
+            }
+        }
+        
+        Section("可视化演示") {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 4) {
+                    Rectangle()
+                        .fill(Color.gray)
+                        .frame(width: 10, height: 100)
+                    
+                    ForEach(calculatedPlates, id: \.weight) { item in
+                        ForEach(0..<item.count, id: \.self) { _ in
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(plateColor(item.weight))
+                                .frame(width: plateWidth(item.weight), height: plateHeight(item.weight))
+                                .overlay(
+                                    Rectangle()
+                                        .strokeBorder(Color.black.opacity(0.1), lineWidth: 1)
+                                )
+                        }
+                    }
+                    
+                    Rectangle()
+                        .fill(Color.gray)
+                        .frame(width: 20, height: 10)
+                }
+                .padding(.vertical, 20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    func stackView(increment: Double) -> some View {
+        // 智能计算：判断是否需要使用2.5kg微调片
+        // 只有当主配重增量 >= 5kg 时，微调片才有意义（否则直接插下一格即可）
+        let microWeight = 2.5
+        let supportsMicro = increment >= 4.5
+        
+        var bestSlot = 0
+        var useMicro = false
+        var minDiff = Double.infinity
+        
+        // 遍历寻找最接近的组合
+        // 尝试范围：理论格数上下浮动，结合有无微调片
+        let approxSlots = Int(targetWeight / increment)
+        for slot in max(0, approxSlots - 1)...(approxSlots + 1) {
+            let base = Double(slot) * increment
+            
+            // 组合1：仅主配重
+            let diff1 = abs(targetWeight - base)
+            if diff1 < minDiff {
+                minDiff = diff1
+                bestSlot = slot
+                useMicro = false
+            }
+            
+            // 组合2：主配重 + 微调
+            if supportsMicro {
+                let diff2 = abs(targetWeight - (base + microWeight))
+                if diff2 < minDiff {
+                    minDiff = diff2
+                    bestSlot = slot
+                    useMicro = true
+                }
+            }
+        }
+        
+        let actualWeight = Double(bestSlot) * increment + (useMicro ? microWeight : 0)
+        
+        return VStack(spacing: 20) {
+            Section("插销位置建议") {
+                if bestSlot <= 0 && !useMicro {
+                    Text("无需负重")
+                        .foregroundStyle(.secondary)
+                } else {
+                    HStack(spacing: 20) {
+                        // 主配重指示
+                        VStack {
+                            Text("插在第")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                Text("\(bestSlot)")
+                                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.blue)
+                                Text("格")
+                                    .font(.headline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text("(\(Int(Double(bestSlot) * increment)) kg)")
+                                .font(.caption.bold())
+                                .foregroundStyle(.blue)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                        .background(Color.blue.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        
+                        // 微调片指示
+                        if useMicro {
+                            Image(systemName: "plus")
+                                .foregroundStyle(.secondary)
+                            
+                            VStack {
+                                Text("微调片")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                    Text("2.5")
+                                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.orange)
+                                    Text("kg")
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Text("调节旋钮/挂小片")
+                                    .font(.caption2)
+                                    .foregroundStyle(.orange)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.orange.opacity(0.1))
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                        }
+                    }
+                    
+                    HStack {
+                        Text("总重量 ≈ \(String(format: "%.1f", actualWeight)) kg")
+                            .font(.headline)
+                        if abs(actualWeight - targetWeight) > 0.1 {
+                            Text("(目标 \(String(format: "%.1f", targetWeight)))")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            
+            Section("配重片示意图") {
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(spacing: 2) {
+                            // 顶部微调片示意
+                            if useMicro {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color.orange)
+                                        .frame(height: 12)
+                                        .padding(.horizontal, 40)
+                                    Text("+2.5kg 微调")
+                                        .font(.caption2)
+                                        .foregroundStyle(.white)
+                                }
+                                .padding(.bottom, 4)
+                            }
+                            
+                            ForEach(1...max(15, bestSlot + 2), id: \.self) { i in
+                                HStack {
+                                    Text("\(i)")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                        .frame(width: 20)
+                                    
+                                    ZStack(alignment: .leading) {
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .fill(i <= bestSlot ? Color.blue : Color(uiColor: .systemGray5))
+                                            .frame(height: 24)
+                                        
+                                        if i == bestSlot {
+                                            // 插销示意
+                                            Circle()
+                                                .fill(Color.white)
+                                                .frame(width: 12, height: 12)
+                                                .shadow(radius: 1)
+                                                .padding(.leading, 100)
+                                        }
+                                        
+                                        Text("\(String(format: "%.1f", Double(i) * increment))")
+                                            .font(.caption2)
+                                            .foregroundStyle(i <= bestSlot ? .white : .secondary)
+                                            .padding(.leading, 8)
+                                    }
+                                    .id(i)
+                                }
+                            }
+                        }
+                        .padding()
+                    }
+                    .frame(height: 250)
+                    .background(Color(uiColor: .secondarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .onAppear {
+                        proxy.scrollTo(bestSlot, anchor: .center)
+                    }
+                }
+            }
+        }
+    }
+    
+    func plateColor(_ weight: Double) -> Color {
+        switch weight {
+        case 25: return .red
+        case 20: return .blue
+        case 15: return .yellow
+        case 10: return .green
+        case 5: return .white
+        case 2.5: return .black
+        default: return .gray
+        }
+    }
+    
+    func plateHeight(_ weight: Double) -> CGFloat {
+        switch weight {
+        case 25: return 120
+        case 20: return 120
+        case 15: return 100
+        case 10: return 80
+        case 5: return 60
+        case 2.5: return 50
+        case 1.25: return 40
+        default: return 30
+        }
+    }
+    
+    func plateWidth(_ weight: Double) -> CGFloat {
+        switch weight {
+        case 25: return 25
+        case 20: return 20
+        case 15: return 18
+        case 10: return 15
+        case 5: return 12
+        case 2.5: return 10
+        case 1.25: return 8
+        default: return 6
+        }
+    }
+}
+
 // MARK: - OnboardingView
 
 struct OnboardingView: View {
@@ -262,6 +689,51 @@ struct OnboardingView: View {
     }
 }
 
+struct IncrementalProgressView: View {
+    let completed: Int
+    let target: Int
+    
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(0..<max(completed, target), id: \.self) { index in
+                        ZStack {
+                            Circle()
+                                .fill(circleColor(for: index))
+                                .frame(width: 14, height: 14)
+                                .scaleEffect(index < completed ? 1.2 : 1.0)
+                            
+                            if index < target {
+                                Circle()
+                                    .stroke(index < completed ? Color.blue.opacity(0.3) : Color.gray.opacity(0.2), lineWidth: 1.5)
+                                    .frame(width: 24, height: 24)
+                            }
+                        }
+                        .id(index)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.6), value: completed)
+                    }
+                }
+                .padding(.horizontal, 4)
+                .frame(height: 32)
+            }
+            .onChange(of: completed) { newValue in
+                withAnimation {
+                    proxy.scrollTo(newValue - 1, anchor: .trailing)
+                }
+            }
+        }
+    }
+    
+    private func circleColor(for index: Int) -> Color {
+        if index < completed {
+            return index < target ? .blue : .purple
+        } else {
+            return Color(uiColor: .systemGray5)
+        }
+    }
+}
+
 // MARK: - HomeView
 
 struct HomeView: View {
@@ -273,6 +745,13 @@ struct HomeView: View {
     @State private var isImporting = false
     @State private var showImportResult = false
     @State private var importSucceeded = false
+    @State private var showRPEGuide = false
+    @State private var showPlateCalculator = false
+    @State private var plateCalculatorTargetWeight: Double = 20.0
+    @State private var plateCalculatorMachineName: String = "配重助手"
+    @State private var plateCalculatorLoadType: MachineLoadType = .stack(increment: 5)
+    @State private var prMessage: String?
+    @State private var showWaterReminder = false
 
     private var todaySession: WorkoutSession {
         if let existing = store.state.sessions.session(on: today) {
@@ -393,10 +872,44 @@ struct HomeView: View {
             }
             showImportResult = true
         }
+        .sheet(isPresented: $showRPEGuide) {
+            RPEGuideView()
+        }
+        .sheet(isPresented: $showPlateCalculator) {
+            MachineWeightHelperView(targetWeight: $plateCalculatorTargetWeight, machineName: plateCalculatorMachineName, loadType: plateCalculatorLoadType)
+        }
         .alert(importSucceeded ? "导入成功" : "导入失败", isPresented: $showImportResult) {
             Button("确定", role: .cancel) {}
         } message: {
             Text(importSucceeded ? "训练数据已恢复" : "请确认文件格式正确")
+        }
+        .onReceive(store.newPRSubject) { (name, weight) in
+            prMessage = "新纪录！\n\(name) \(String(format: "%.1f", weight)) kg"
+        }
+        .alert("恭喜破纪录！🎉", isPresented: Binding(
+            get: { prMessage != nil },
+            set: { if !$0 { prMessage = nil } }
+        )) {
+            Button("太棒了", role: .cancel) {}
+        } message: {
+            if let msg = prMessage { Text(msg) }
+        }
+        .overlay(alignment: .top) {
+            if showWaterReminder {
+                HStack {
+                    Image(systemName: "drop.fill")
+                        .foregroundStyle(.blue)
+                    Text("记得喝水补充水分哦 💧")
+                        .font(.subheadline.bold())
+                }
+                .padding()
+                .background(.ultraThinMaterial)
+                .clipShape(Capsule())
+                .shadow(radius: 5)
+                .padding(.top, 60)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .zIndex(200)
+            }
         }
     }
 
@@ -498,6 +1011,30 @@ struct HomeView: View {
 
             Divider()
             
+            if let warmup = session.warmup {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "figure.walk")
+                            .foregroundStyle(.orange)
+                        Text("热身建议")
+                            .font(.headline)
+                    }
+                    
+                    ForEach(warmup, id: \.self) { item in
+                        HStack(alignment: .top, spacing: 8) {
+                            Text("•")
+                                .foregroundStyle(.secondary)
+                            Text(item)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                .padding(.vertical, 8)
+                
+                Divider()
+            }
+            
             // Notifications / Warnings
             if session.difficultyLevel < store.state.progress.level {
                 HStack(alignment: .top, spacing: 8) {
@@ -581,20 +1118,47 @@ struct HomeView: View {
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                             
-                            Text("\(exercise.sets)组 × \(exercise.reps)次 • 休息\(exercise.restSeconds)s • RPE \(String(format: "%.1f", exercise.targetRPE))")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .padding(.top, 2)
+                            HStack(spacing: 4) {
+                                Text("\(exercise.sets)组 × \(exercise.reps)次 • 休息\(exercise.restSeconds)s • RPE \(String(format: "%.1f", exercise.targetRPE))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                Button {
+                                    showRPEGuide = true
+                                } label: {
+                                    Image(systemName: "info.circle")
+                                        .font(.caption)
+                                        .foregroundStyle(.blue)
+                                }
+                            }
+                            .padding(.top, 2)
                         }
                     }
 
                     // Data Display (Read-only as requested)
                     HStack(spacing: 20) {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("重量")
-                                .font(.caption2)
-                                .textCase(.uppercase)
-                                .foregroundStyle(.secondary)
+                            HStack {
+                                Text("重量")
+                                    .font(.caption2)
+                                    .textCase(.uppercase)
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Button {
+                                    plateCalculatorTargetWeight = exercise.recommendedLoadKg
+                                    if let info = MachineCatalog.info(for: exercise.machine) {
+                                        plateCalculatorMachineName = info.displayName
+                                        plateCalculatorLoadType = info.loadType
+                                    } else {
+                                        plateCalculatorMachineName = exercise.name
+                                        plateCalculatorLoadType = .stack(increment: 5)
+                                    }
+                                    showPlateCalculator = true
+                                } label: {
+                                    Image(systemName: "scalemass.fill")
+                                        .font(.caption2)
+                                        .foregroundStyle(.blue)
+                                }
+                            }
                             Text("\(String(format: "%.1f", exercise.recommendedLoadKg))")
                                 .font(.system(.title2, design: .rounded).bold()) +
                             Text(" kg").font(.caption).foregroundStyle(.secondary)
@@ -619,52 +1183,101 @@ struct HomeView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                     }
 
-                    // Check-in Circles
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("打卡")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("组数进度")
+                                .font(.caption.bold())
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text("\(exercise.completedSets) / \(exercise.sets)")
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(exercise.completedSets >= exercise.sets ? .purple : .secondary)
+                        }
+                        
+                        IncrementalProgressView(completed: exercise.completedSets, target: exercise.sets)
                         
                         HStack(spacing: 12) {
-                            ForEach(0..<exercise.sets, id: \.self) { index in
-                                Button {
-                                    let newCompleted = (index == exercise.completedSets - 1) ? index : index + 1
+                            Button {
+                                if exercise.completedSets > 0 {
                                     store.updateExercise(on: session.date, exerciseId: exercise.id) { target in
-                                        target.completedSets = newCompleted
+                                        target.completedSets -= 1
                                     }
-                                    store.markSessionCompleted(on: session.date)
-                                    
-                                    if newCompleted == exercise.sets {
-                                        let generator = UINotificationFeedbackGenerator()
-                                        generator.notificationOccurred(.success)
-                                    } else {
-                                        let generator = UIImpactFeedbackGenerator(style: .medium)
-                                        generator.impactOccurred()
+                                    let generator = UIImpactFeedbackGenerator(style: .light)
+                                    generator.impactOccurred()
+                                }
+                            } label: {
+                                Image(systemName: "arrow.uturn.backward")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundStyle(.secondary)
+                                    .frame(width: 50, height: 50)
+                                    .background(Color(uiColor: .secondarySystemBackground))
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                            }
+                            .disabled(exercise.completedSets == 0)
+                            .opacity(exercise.completedSets == 0 ? 0.5 : 1.0)
+                            
+                            Button {
+                                store.updateExercise(on: session.date, exerciseId: exercise.id) { target in
+                                    target.completedSets += 1
+                                }
+                                store.markSessionCompleted(on: session.date)
+                                
+                                let totalSets = session.exercises.reduce(0) { $0 + $1.completedSets }
+                                if totalSets > 0 && totalSets % 6 == 0 {
+                                    withAnimation {
+                                        showWaterReminder = true
                                     }
-                                } label: {
-                                    ZStack {
-                                        Circle()
-                                            .stroke(index < exercise.completedSets ? Color.blue : Color.gray.opacity(0.3), lineWidth: 2)
-                                            .background(
-                                                Circle()
-                                                    .fill(index < exercise.completedSets ? Color.blue : Color.clear)
-                                            )
-                                            .frame(width: 44, height: 44)
-                                        
-                                        if index < exercise.completedSets {
-                                            Image(systemName: "checkmark")
-                                                .font(.headline)
-                                                .foregroundStyle(.white)
-                                                .transition(.scale.combined(with: .opacity))
-                                        } else {
-                                            Text("\(index + 1)")
-                                                .font(.subheadline)
-                                                .foregroundStyle(.gray)
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                                        withAnimation {
+                                            showWaterReminder = false
                                         }
                                     }
                                 }
-                                .buttonStyle(.plain)
+                                
+                                if exercise.completedSets + 1 == exercise.sets {
+                                    let generator = UINotificationFeedbackGenerator()
+                                    generator.notificationOccurred(.success)
+                                } else if exercise.completedSets + 1 > exercise.sets {
+                                    let generator = UIImpactFeedbackGenerator(style: .heavy)
+                                    generator.impactOccurred()
+                                } else {
+                                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                                    generator.impactOccurred()
+                                    
+                                    TimerManager.shared.startTimer(seconds: exercise.restSeconds)
+                                }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "plus.circle.fill")
+                                    Text("完成一组")
+                                }
+                                .font(.headline)
+                                .foregroundStyle(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(exercise.completedSets >= exercise.sets ? Color.purple : Color.blue)
+                                .clipShape(RoundedRectangle(cornerRadius: 12))
+                                .shadow(color: (exercise.completedSets >= exercise.sets ? Color.purple : Color.blue).opacity(0.2), radius: 5, x: 0, y: 2)
                             }
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("备注")
+                                .font(.caption.bold())
+                                .foregroundStyle(.secondary)
+                            
+                            TextField("添加动作备注...", text: Binding(
+                                get: { exercise.notes },
+                                set: { newValue in
+                                    store.updateExercise(on: session.date, exerciseId: exercise.id) { target in
+                                        target.notes = newValue
+                                    }
+                                }
+                            ), axis: .vertical)
+                            .font(.caption)
+                            .padding(8)
+                            .background(Color(uiColor: .tertiarySystemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
                         }
                     }
                 }
@@ -1138,6 +1751,7 @@ struct DayRowView: View {
                             if focus.isDeload {
                                 Text("减量")
                                     .font(.caption.bold())
+                                    .foregroundStyle(.yellow)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
                                     .background(Color.yellow.opacity(0.2))
@@ -1204,20 +1818,20 @@ struct DayRowView: View {
             .presentationDetents([.medium, .large])
         }
     }
+    
     private func isManualOverride(for date: Date) -> Bool {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let dateStr = formatter.string(from: date)
         return store.state.scheduleOverrides[dateStr] != nil
     }
-
+    
     private func weekDayString(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "EEE"
         formatter.locale = Locale(identifier: "zh_CN")
         return formatter.string(from: date)
     }
-
     
     private func dayString(_ date: Date) -> String {
         let formatter = DateFormatter()
@@ -1234,5 +1848,11 @@ struct DayRowView: View {
         case .upper: return "上肢训练"
         case .lower: return "下肢训练"
         }
+    }
+    
+    private func intensityDescription(level: Int) -> String {
+        if level < 5 { return "基础适应期" }
+        if level < 15 { return "进阶强化期" }
+        return "高强度突破期"
     }
 }

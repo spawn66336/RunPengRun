@@ -36,10 +36,33 @@ struct Planner {
             id: UUID(),
             date: date.startOfDay,
             difficultyLevel: intensity.level,
-            exercises: exercises
+            exercises: exercises,
+            warmup: generateWarmup(for: focus.type)
         )
     }
-
+    
+    private static func generateWarmup(for focusType: FocusType) -> [String] {
+        var warmup = ["跑步机快走 5 分钟 (坡度 5, 速度 4)"]
+        switch focusType {
+        case .push, .upper:
+            warmup.append("肩部环绕 20次")
+            warmup.append("弹力带面拉 2组 x 15次")
+            warmup.append("俯卧撑 1组 x 10次 (慢速)")
+        case .pull:
+            warmup.append("肩胛骨引体 2组 x 10次")
+            warmup.append("直臂下压 2组 x 15次 (轻重量)")
+        case .legs, .lower:
+            warmup.append("深蹲跳 2组 x 10次")
+            warmup.append("髋关节活动 (开合腿) 20次")
+            warmup.append("空手深蹲 1组 x 15次")
+        case .fullBody:
+            warmup.append("开合跳 30次")
+            warmup.append("俯卧撑 10次")
+            warmup.append("深蹲 15次")
+        }
+        return warmup
+    }
+    
     static func shouldTrain(on date: Date, trainingDays: [Int], overrides: [String: Bool]) -> Bool {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
