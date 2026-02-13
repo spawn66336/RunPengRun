@@ -17,6 +17,7 @@ final class LocalStore: ObservableObject {
         if let data = try? Data(contentsOf: fileURL),
            let decoded = try? JSONDecoder().decode(AppState.self, from: data) {
             state = decoded
+            migrateLegacyWarmups() // Add this migration call
         } else {
             state = AppState(
                 profile: nil,
@@ -37,6 +38,32 @@ final class LocalStore: ObservableObject {
             .store(in: &cancellables)
     }
 
+    private func migrateLegacyWarmups() {
+        for index in state.sessions.indices {
+            if (state.sessions[index].warmupExercises == nil || state.sessions[index].warmupExercises!.isEmpty),
+               let legacyWarmups = state.sessions[index].warmup, !legacyWarmups.isEmpty {
+                
+                let exercises = legacyWarmups.map { name in
+                    WorkoutExercise(
+                        id: UUID(),
+                        name: name,
+                        machine: name,
+                        sets: 1,
+                        reps: 10,
+                        restSeconds: 0,
+                        tempo: "Normal",
+                        targetRPE: 3.0,
+                        recommendedLoadKg: 0,
+                        notes: "从历史记录迁移的热身项"
+                    )
+                }
+                
+                state.sessions[index].warmupExercises = exercises
+                state.sessions[index].warmup = nil
+            }
+        }
+    }
+    
     func updateProfile(_ profile: UserProfile) {
         state.profile = profile
         NotificationManager.shared.scheduleNotifications(profile: profile)
@@ -57,10 +84,10 @@ final class LocalStore: ObservableObject {
         
         guard let session = state.sessions.session(on: date) else { return }
         
-        // Only run progression if not already run today (could add a flag, but for now simple)
-        // Or we just update stats every time.
-        
-        state.progress.totalSessions += 1
+        // Recalculate total sessions based on actual completion status
+        // This ensures the count decreases if a session becomes incomplete
+        // Use 'started' instead of 'completed' so partial workouts count as a session
+        state.progress.totalSessions = state.sessions.filter { $0.started }.count
         state.progress.level = max(state.progress.level, state.progress.totalSessions / 4)
         state.progress.lastSessionDate = date
         
@@ -135,8 +162,15 @@ final class LocalStore: ObservableObject {
 
     func updateExercise(on date: Date, exerciseId: UUID, update: (inout WorkoutExercise) -> Void) {
         guard var session = state.sessions.session(on: date) else { return }
-        guard let index = session.exercises.firstIndex(where: { $0.id == exerciseId }) else { return }
-        update(&session.exercises[index])
+        
+        if let index = session.exercises.firstIndex(where: { $0.id == exerciseId }) {
+            update(&session.exercises[index])
+        } else if var warmups = session.warmupExercises, let index = warmups.firstIndex(where: { $0.id == exerciseId }) {
+            update(&warmups[index])
+            session.warmupExercises = warmups
+        } else {
+            return
+        }
         saveSession(session)
     }
 

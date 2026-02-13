@@ -172,24 +172,25 @@ struct RunPengRunApp: App {
                     SplashView()
                         .transition(.opacity)
                         .onAppear {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                                withAnimation {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                withAnimation(.easeOut(duration: 0.5)) {
                                     showSplash = false
                                 }
                             }
                         }
-                } else {
-                    ContentView()
-                        .environmentObject(store)
-                        .transition(.opacity)
-                    
-                    VStack {
-                        Spacer()
-                        TimerView()
-                    }
-                    .padding(.bottom, 50)
-                    .zIndex(100)
+                        .zIndex(200)
                 }
+                
+                ContentView()
+                    .environmentObject(store)
+                    .zIndex(0)
+                
+                VStack {
+                    Spacer()
+                    TimerView()
+                }
+                .padding(.bottom, 50)
+                .zIndex(100)
             }
         }
     }
@@ -198,17 +199,22 @@ struct RunPengRunApp: App {
 struct SplashView: View {
     var body: some View {
         ZStack {
+            // 背景层：使用高斯模糊的图片作为背景，实现颜色自适应
             Image("Splash")
                 .resizable()
                 .aspectRatio(contentMode: .fill)
                 .ignoresSafeArea()
-                .blur(radius: 30)
-                .overlay(Color.black.opacity(0.1))
+                .blur(radius: 60)
+                .overlay(Color.black.opacity(0.2)) // 略微压暗，提升质感
             
+            // 前景层：图片宽度适配屏幕
             Image("Splash")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(maxWidth: .infinity)
+                .shadow(radius: 10) // 添加阴影增加层次感
         }
+        .background(Color.black) // 兜底背景色
     }
 }
+

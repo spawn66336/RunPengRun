@@ -97,6 +97,8 @@ enum PrimaryGroup: String {
     case calves
     case arms
     case core
+    case warmup
+    case cardio
 }
 
 enum FocusType: String {
@@ -227,12 +229,18 @@ struct WorkoutSession: Codable, Identifiable {
     var difficultyLevel: Int
     var exercises: [WorkoutExercise]
     var warmup: [String]?
+    var warmupExercises: [WorkoutExercise]?
     
     var completed: Bool {
         guard !exercises.isEmpty else { return false }
         let totalSets = exercises.reduce(0) { $0 + $1.sets }
         let completedSets = exercises.reduce(0) { $0 + $1.completedSets }
         return completedSets == totalSets
+    }
+    
+    var started: Bool {
+        guard !exercises.isEmpty else { return false }
+        return exercises.contains { $0.completedSets > 0 }
     }
 }
 

@@ -37,30 +37,177 @@ struct Planner {
             date: date.startOfDay,
             difficultyLevel: intensity.level,
             exercises: exercises,
-            warmup: generateWarmup(for: focus.type)
+            warmup: nil,
+            warmupExercises: generateWarmupExercises(for: focus.type)
         )
     }
     
-    private static func generateWarmup(for focusType: FocusType) -> [String] {
-        var warmup = ["跑步机快走 5 分钟 (坡度 5, 速度 4)"]
+    private static func generateWarmupExercises(for focusType: FocusType) -> [WorkoutExercise] {
+        var warmups: [WorkoutExercise] = []
+        
+        // 1. General Cardio
+        warmups.append(WorkoutExercise(
+            id: UUID(),
+            name: "跑步机快走",
+            machine: "Treadmill",
+            sets: 1,
+            reps: 5, // 5 mins
+            restSeconds: 0,
+            tempo: "Normal",
+            targetRPE: 4.0,
+            recommendedLoadKg: 0,
+            notes: "坡度 5, 速度 4, 持续 5 分钟"
+        ))
+        
+        // 2. Specific Warmups
         switch focusType {
         case .push, .upper:
-            warmup.append("肩部环绕 20次")
-            warmup.append("弹力带面拉 2组 x 15次")
-            warmup.append("俯卧撑 1组 x 10次 (慢速)")
+            warmups.append(WorkoutExercise(
+                id: UUID(),
+                name: "肩部环绕",
+                machine: "Shoulder Circle",
+                sets: 1,
+                reps: 20,
+                restSeconds: 0,
+                tempo: "Slow",
+                targetRPE: 3.0,
+                recommendedLoadKg: 0,
+                notes: "向前向后各 10 次"
+            ))
+            warmups.append(WorkoutExercise(
+                id: UUID(),
+                name: "弹力带面拉",
+                machine: "Face Pull",
+                sets: 2,
+                reps: 15,
+                restSeconds: 45,
+                tempo: "2-1-2",
+                targetRPE: 5.0,
+                recommendedLoadKg: 5.0, // Light weight
+                notes: "感受肩袖肌群发力"
+            ))
+            warmups.append(WorkoutExercise(
+                id: UUID(),
+                name: "俯卧撑 (慢速)",
+                machine: "Push Up",
+                sets: 1,
+                reps: 10,
+                restSeconds: 60,
+                tempo: "3-1-3",
+                targetRPE: 5.0,
+                recommendedLoadKg: 0,
+                notes: "激活胸肌与核心"
+            ))
+            
         case .pull:
-            warmup.append("肩胛骨引体 2组 x 10次")
-            warmup.append("直臂下压 2组 x 15次 (轻重量)")
+            warmups.append(WorkoutExercise(
+                id: UUID(),
+                name: "肩胛骨引体",
+                machine: "Scapular Pull Up",
+                sets: 2,
+                reps: 10,
+                restSeconds: 45,
+                tempo: "1-1-1",
+                targetRPE: 5.0,
+                recommendedLoadKg: 0,
+                notes: "仅做肩胛骨下沉回缩，手臂伸直"
+            ))
+            warmups.append(WorkoutExercise(
+                id: UUID(),
+                name: "直臂下压",
+                machine: "Straight Arm Pulldown",
+                sets: 2,
+                reps: 15,
+                restSeconds: 45,
+                tempo: "2-1-2",
+                targetRPE: 5.0,
+                recommendedLoadKg: 10.0, // Light weight
+                notes: "激活背阔肌"
+            ))
+            
         case .legs, .lower:
-            warmup.append("深蹲跳 2组 x 10次")
-            warmup.append("髋关节活动 (开合腿) 20次")
-            warmup.append("空手深蹲 1组 x 15次")
+            warmups.append(WorkoutExercise(
+                id: UUID(),
+                name: "深蹲跳",
+                machine: "Squat Jump",
+                sets: 2,
+                reps: 10,
+                restSeconds: 60,
+                tempo: "Explosive",
+                targetRPE: 6.0,
+                recommendedLoadKg: 0,
+                notes: "轻落地，激活爆发力"
+            ))
+            warmups.append(WorkoutExercise(
+                id: UUID(),
+                name: "髋关节活动",
+                machine: "Hip Mobility",
+                sets: 1,
+                reps: 20,
+                restSeconds: 0,
+                tempo: "Normal",
+                targetRPE: 3.0,
+                recommendedLoadKg: 0,
+                notes: "开合腿或前后摆腿"
+            ))
+            warmups.append(WorkoutExercise(
+                id: UUID(),
+                name: "空手深蹲",
+                machine: "Air Squat",
+                sets: 1,
+                reps: 15,
+                restSeconds: 45,
+                tempo: "2-0-2",
+                targetRPE: 4.0,
+                recommendedLoadKg: 0,
+                notes: "注重动作幅度和控制"
+            ))
+            
         case .fullBody:
-            warmup.append("开合跳 30次")
-            warmup.append("俯卧撑 10次")
-            warmup.append("深蹲 15次")
+            warmups.append(WorkoutExercise(
+                id: UUID(),
+                name: "开合跳",
+                machine: "Jumping Jack",
+                sets: 1,
+                reps: 30,
+                restSeconds: 30,
+                tempo: "Fast",
+                targetRPE: 5.0,
+                recommendedLoadKg: 0,
+                notes: "快速热身"
+            ))
+            warmups.append(WorkoutExercise(
+                id: UUID(),
+                name: "俯卧撑",
+                machine: "Push Up",
+                sets: 1,
+                reps: 10,
+                restSeconds: 45,
+                tempo: "Normal",
+                targetRPE: 5.0,
+                recommendedLoadKg: 0,
+                notes: ""
+            ))
+            warmups.append(WorkoutExercise(
+                id: UUID(),
+                name: "空手深蹲",
+                machine: "Air Squat",
+                sets: 1,
+                reps: 15,
+                restSeconds: 45,
+                tempo: "Normal",
+                targetRPE: 4.0,
+                recommendedLoadKg: 0,
+                notes: ""
+            ))
         }
-        return warmup
+        
+        return warmups
+    }
+    
+    private static func generateWarmup(for focusType: FocusType) -> [String] {
+        // Deprecated, keeping for safety but unused in new sessions
+        return []
     }
     
     static func shouldTrain(on date: Date, trainingDays: [Int], overrides: [String: Bool]) -> Bool {
@@ -279,6 +426,7 @@ struct Planner {
         case .arms: baseFactor = 0.25
         case .calves: baseFactor = 0.40
         case .core: baseFactor = 0.20
+        case .warmup, .cardio: baseFactor = 0.0 // Usually manual or bodyweight
         }
         let goalFactor: Double
         switch profile.goal {

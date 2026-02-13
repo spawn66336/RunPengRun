@@ -32,7 +32,21 @@ struct ContentView: View {
                     HomeView(profile: profile)
                 }
                 .tabItem {
-                    Label("计划", systemImage: "calendar")
+                    Label("今日", systemImage: "figure.strengthtraining.traditional")
+                }
+                
+                NavigationStack {
+                    WeeklyScheduleView()
+                }
+                .tabItem {
+                    Label("本周", systemImage: "calendar")
+                }
+                
+                NavigationStack {
+                    HistoryView()
+                }
+                .tabItem {
+                    Label("最近", systemImage: "clock.arrow.circlepath")
                 }
 
                 StatsView()
@@ -241,31 +255,31 @@ struct MachineWeightHelperView: View {
         }
         
         Section("可视化演示") {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 4) {
-                    Rectangle()
-                        .fill(Color.gray)
-                        .frame(width: 10, height: 100)
-                    
-                    ForEach(calculatedPlates, id: \.weight) { item in
-                        ForEach(0..<item.count, id: \.self) { _ in
-                            RoundedRectangle(cornerRadius: 4)
-                                .fill(plateColor(item.weight))
-                                .frame(width: plateWidth(item.weight), height: plateHeight(item.weight))
-                                .overlay(
-                                    Rectangle()
-                                        .strokeBorder(Color.black.opacity(0.1), lineWidth: 1)
-                                )
-                        }
+            HStack(spacing: 4) {
+                Rectangle()
+                    .fill(Color.gray)
+                    .frame(width: 10, height: 100)
+                
+                ForEach(calculatedPlates, id: \.weight) { item in
+                    ForEach(0..<item.count, id: \.self) { _ in
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(plateColor(item.weight))
+                            .frame(width: plateWidth(item.weight), height: plateHeight(item.weight))
+                            .overlay(
+                                Rectangle()
+                                    .strokeBorder(Color.black.opacity(0.1), lineWidth: 1)
+                            )
                     }
-                    
-                    Rectangle()
-                        .fill(Color.gray)
-                        .frame(width: 20, height: 10)
                 }
-                .padding(.vertical, 20)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                
+                Rectangle()
+                    .fill(Color.gray)
+                    .frame(width: 20, height: 10)
+                
+                Spacer()
             }
+            .padding(.vertical, 20)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
     
@@ -734,6 +748,95 @@ struct IncrementalProgressView: View {
     }
 }
 
+struct HistoryView: View {
+    @EnvironmentObject private var store: LocalStore
+    
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
+                if store.state.sessions.isEmpty {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 8) {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.largeTitle)
+                                .foregroundStyle(.gray.opacity(0.3))
+                            Text("还没有训练记录")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 40)
+                } else {
+                    VStack(spacing: 12) {
+                        ForEach(store.state.sessions.sorted(by: { $0.date > $1.date }).prefix(20)) { session in
+                            if let profile = store.state.profile {
+                                NavigationLink(destination: DayDetailView(date: session.date, profile: profile)) {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(dateString(session.date))
+                                                .font(.subheadline.bold())
+                                                .foregroundStyle(.primary)
+                                            Text("强度 Lv.\(session.difficultyLevel)")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        let progress = calculateProgress(for: session)
+                                        let percentage = Int(progress * 100)
+                                        
+                                        HStack(spacing: 8) {
+                                            Text("\(percentage)%")
+                                                .font(.caption.bold())
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 4)
+                                                .background(progressColor(progress).opacity(0.1))
+                                                .foregroundStyle(progressColor(progress))
+                                                .clipShape(Capsule())
+                                            
+                                            Image(systemName: "chevron.right")
+                                                .font(.caption)
+                                                .foregroundStyle(.tertiary)
+                                        }
+                                    }
+                                    .padding(12)
+                                    .background(Color(uiColor: .secondarySystemBackground))
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .padding()
+        }
+        .background(Color(uiColor: .systemGroupedBackground))
+        .navigationTitle("最近记录")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+    
+    private func dateString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM月dd日"
+        return formatter.string(from: date)
+    }
+    
+    private func calculateProgress(for session: WorkoutSession) -> Double {
+        let totalSets = Double(session.exercises.reduce(0) { $0 + $1.sets })
+        let completedSets = Double(session.exercises.reduce(0) { $0 + $1.completedSets })
+        return totalSets > 0 ? completedSets / totalSets : 0
+    }
+    
+    private func progressColor(_ progress: Double) -> Color {
+        if progress >= 1.0 { return .green }
+        if progress >= 0.5 { return .blue }
+        return .orange
+    }
+}
+
 // MARK: - HomeView
 
 struct HomeView: View {
@@ -752,6 +855,10 @@ struct HomeView: View {
     @State private var plateCalculatorLoadType: MachineLoadType = .stack(increment: 5)
     @State private var prMessage: String?
     @State private var showWaterReminder = false
+    
+    // Bottom Sheet States
+    @State private var showWeeklySchedule = false
+    @State private var showHistory = false
 
     private var todaySession: WorkoutSession {
         if let existing = store.state.sessions.session(on: today) {
@@ -787,36 +894,6 @@ struct HomeView: View {
                 summaryCard
                     .padding(.horizontal)
                 
-                // Weekly Schedule Card (New)
-                VStack(alignment: .leading, spacing: 16) {
-                    HStack {
-                        Text("本周计划")
-                            .font(.headline)
-                        Spacer()
-                        NavigationLink(destination: WeeklyScheduleView()) {
-                            Text("查看全部")
-                                .font(.subheadline)
-                                .foregroundStyle(.blue)
-                        }
-                    }
-                    .padding(.horizontal)
-                    
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(0..<7) { dayOffset in
-                                let _ = Date().startOfDay.addingDays(dayOffset)
-                                // Let's show "Current Week" Mon-Sun as requested context implies "This Week Plan"
-                                let weekDates = currentWeekDates()
-                                if dayOffset < weekDates.count {
-                                    let dayDate = weekDates[dayOffset]
-                                    DayMiniCard(date: dayDate, profile: profile)
-                                }
-                            }
-                        }
-                        .padding(.horizontal)
-                    }
-                }
-
                 if Planner.shouldTrain(on: today, trainingDays: profile.trainingDays, overrides: store.state.scheduleOverrides) {
                     workoutCard(session: todaySession)
                         .padding(.horizontal)
@@ -824,9 +901,6 @@ struct HomeView: View {
                     restCard
                         .padding(.horizontal)
                 }
-                
-                historyCard
-                    .padding(.horizontal)
             }
             .padding(.bottom, 40)
         }
@@ -836,10 +910,6 @@ struct HomeView: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    NavigationLink(destination: WeeklyScheduleView()) {
-                        Label("本周计划", systemImage: "calendar")
-                    }
-                    Divider()
                     Button("导出训练数据", systemImage: "square.and.arrow.up") {
                         exportURL = store.exportState()
                     }
@@ -987,51 +1057,16 @@ struct HomeView: View {
     private func workoutCard(session: WorkoutSession) -> some View {
         VStack(alignment: .leading, spacing: 20) {
             // Header
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("今日训练")
-                        .font(.title2.bold())
-                    Text(profile.split.displayName)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                HStack(spacing: 4) {
-                    Image(systemName: "flame.fill")
-                        .foregroundStyle(.orange)
-                    Text("强度 Lv.\(session.difficultyLevel)")
-                        .font(.subheadline.bold())
-                        .foregroundStyle(.orange)
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(Color.orange.opacity(0.1))
-                        .clipShape(Capsule())
-                }
+            WorkoutHeaderView(profile: profile, session: session)
 
             Divider()
             
-            if let warmup = session.warmup {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Image(systemName: "figure.walk")
-                            .foregroundStyle(.orange)
-                        Text("热身建议")
-                            .font(.headline)
-                    }
-                    
-                    ForEach(warmup, id: \.self) { item in
-                        HStack(alignment: .top, spacing: 8) {
-                            Text("•")
-                                .foregroundStyle(.secondary)
-                            Text(item)
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-                .padding(.vertical, 8)
-                
+            // Warm-up Section
+            if let warmupExercises = session.warmupExercises, !warmupExercises.isEmpty {
+                WarmupSectionView(warmupExercises: warmupExercises, session: session)
+                Divider()
+            } else if let warmup = session.warmup, !warmup.isEmpty {
+                LegacyWarmupView(warmupItems: warmup)
                 Divider()
             }
             
@@ -1047,246 +1082,9 @@ struct HomeView: View {
                 .padding(.bottom, 8)
             }
 
-
             // Exercises
             ForEach(session.exercises) { exercise in
-                VStack(alignment: .leading, spacing: 16) {
-                    // Exercise Header
-                    HStack(alignment: .center, spacing: 16) { // Improved alignment and spacing
-                        ZStack {
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.blue.opacity(0.05))
-                                .frame(width: 80, height: 80) // Larger square container
-                            
-                            Image(MachineCatalog.iconName(for: exercise.machine))
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .padding(4)
-                                .frame(width: 80, height: 80) // Fill the larger container
-                                .foregroundStyle(.blue)
-                                .background(Color.clear)
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 6) { // Better vertical spacing for text
-                            HStack(alignment: .top) {
-                                Text(exercise.name)
-                                    .font(.headline)
-                                    .lineLimit(2)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                Spacer()
-                                Menu {
-                                    let equivalents = MachineCatalog.equivalents(for: exercise.machine)
-                                    ForEach(equivalents) { option in
-                                        let load = store.state.machineLoads[option.id] ?? exercise.recommendedLoadKg
-                                        let reps = store.state.machineReps[option.id] ?? exercise.reps
-                                        Button("\(option.displayName) (\(String(format: "%.1f", load))kg · \(reps)次)") {
-                                            store.updateExercise(on: session.date, exerciseId: exercise.id) { target in
-                                                target.machine = option.id
-                                                target.name = option.displayName
-                                                target.recommendedLoadKg = load
-                                                target.reps = reps
-                                            }
-                                            // Save preference
-                                            if let info = MachineCatalog.info(for: option.id) {
-                                                store.setMachinePreference(for: info.group.rawValue, machineId: option.id)
-                                            }
-                                        }
-                                    }
-                                } label: {
-                                    Image(systemName: "arrow.triangle.2.circlepath")
-                                        .font(.caption)
-                                        .padding(6)
-                                        .background(Color(.secondarySystemBackground))
-                                        .clipShape(Circle())
-                                }
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("器械：\(MachineCatalog.displayName(for: exercise.machine))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                
-                                Text(MachineCatalog.englishName(for: exercise.machine))
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                    .italic()
-                                
-                                Text(MachineCatalog.description(for: exercise.machine))
-                                    .font(.caption2)
-                                    .foregroundStyle(.blue)
-                                    .lineLimit(2)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                            
-                            HStack(spacing: 4) {
-                                Text("\(exercise.sets)组 × \(exercise.reps)次 • 休息\(exercise.restSeconds)s • RPE \(String(format: "%.1f", exercise.targetRPE))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Button {
-                                    showRPEGuide = true
-                                } label: {
-                                    Image(systemName: "info.circle")
-                                        .font(.caption)
-                                        .foregroundStyle(.blue)
-                                }
-                            }
-                            .padding(.top, 2)
-                        }
-                    }
-
-                    // Data Display (Read-only as requested)
-                    HStack(spacing: 20) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack {
-                                Text("重量")
-                                    .font(.caption2)
-                                    .textCase(.uppercase)
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                Button {
-                                    plateCalculatorTargetWeight = exercise.recommendedLoadKg
-                                    if let info = MachineCatalog.info(for: exercise.machine) {
-                                        plateCalculatorMachineName = info.displayName
-                                        plateCalculatorLoadType = info.loadType
-                                    } else {
-                                        plateCalculatorMachineName = exercise.name
-                                        plateCalculatorLoadType = .stack(increment: 5)
-                                    }
-                                    showPlateCalculator = true
-                                } label: {
-                                    Image(systemName: "scalemass.fill")
-                                        .font(.caption2)
-                                        .foregroundStyle(.blue)
-                                }
-                            }
-                            Text("\(String(format: "%.1f", exercise.recommendedLoadKg))")
-                                .font(.system(.title2, design: .rounded).bold()) +
-                            Text(" kg").font(.caption).foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(12)
-                        .background(Color(uiColor: .secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("目标次数")
-                                .font(.caption2)
-                                .textCase(.uppercase)
-                                .foregroundStyle(.secondary)
-                            Text("\(exercise.reps)")
-                                .font(.system(.title2, design: .rounded).bold()) +
-                            Text(" 次").font(.caption).foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(12)
-                        .background(Color(uiColor: .secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Text("组数进度")
-                                .font(.caption.bold())
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                            Text("\(exercise.completedSets) / \(exercise.sets)")
-                                .font(.caption.monospacedDigit())
-                                .foregroundStyle(exercise.completedSets >= exercise.sets ? .purple : .secondary)
-                        }
-                        
-                        IncrementalProgressView(completed: exercise.completedSets, target: exercise.sets)
-                        
-                        HStack(spacing: 12) {
-                            Button {
-                                if exercise.completedSets > 0 {
-                                    store.updateExercise(on: session.date, exerciseId: exercise.id) { target in
-                                        target.completedSets -= 1
-                                    }
-                                    let generator = UIImpactFeedbackGenerator(style: .light)
-                                    generator.impactOccurred()
-                                }
-                            } label: {
-                                Image(systemName: "arrow.uturn.backward")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 50, height: 50)
-                                    .background(Color(uiColor: .secondarySystemBackground))
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                            }
-                            .disabled(exercise.completedSets == 0)
-                            .opacity(exercise.completedSets == 0 ? 0.5 : 1.0)
-                            
-                            Button {
-                                store.updateExercise(on: session.date, exerciseId: exercise.id) { target in
-                                    target.completedSets += 1
-                                }
-                                store.markSessionCompleted(on: session.date)
-                                
-                                let totalSets = session.exercises.reduce(0) { $0 + $1.completedSets }
-                                if totalSets > 0 && totalSets % 6 == 0 {
-                                    withAnimation {
-                                        showWaterReminder = true
-                                    }
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                                        withAnimation {
-                                            showWaterReminder = false
-                                        }
-                                    }
-                                }
-                                
-                                if exercise.completedSets + 1 == exercise.sets {
-                                    let generator = UINotificationFeedbackGenerator()
-                                    generator.notificationOccurred(.success)
-                                } else if exercise.completedSets + 1 > exercise.sets {
-                                    let generator = UIImpactFeedbackGenerator(style: .heavy)
-                                    generator.impactOccurred()
-                                } else {
-                                    let generator = UIImpactFeedbackGenerator(style: .medium)
-                                    generator.impactOccurred()
-                                    
-                                    TimerManager.shared.startTimer(seconds: exercise.restSeconds)
-                                }
-                            } label: {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "plus.circle.fill")
-                                    Text("完成一组")
-                                }
-                                .font(.headline)
-                                .foregroundStyle(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 50)
-                                .background(exercise.completedSets >= exercise.sets ? Color.purple : Color.blue)
-                                .clipShape(RoundedRectangle(cornerRadius: 12))
-                                .shadow(color: (exercise.completedSets >= exercise.sets ? Color.purple : Color.blue).opacity(0.2), radius: 5, x: 0, y: 2)
-                            }
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("备注")
-                                .font(.caption.bold())
-                                .foregroundStyle(.secondary)
-                            
-                            TextField("添加动作备注...", text: Binding(
-                                get: { exercise.notes },
-                                set: { newValue in
-                                    store.updateExercise(on: session.date, exerciseId: exercise.id) { target in
-                                        target.notes = newValue
-                                    }
-                                }
-                            ), axis: .vertical)
-                            .font(.caption)
-                            .padding(8)
-                            .background(Color(uiColor: .tertiarySystemBackground))
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
-                        }
-                    }
-                }
-                .padding(.bottom, 8)
-                
-                if exercise.id != session.exercises.last?.id {
-                    Divider()
-                        .padding(.bottom, 8)
-                }
+                WorkoutExerciseCard(exercise: exercise, session: session, isLast: exercise.id == session.exercises.last?.id)
             }
 
             // Finish Button Removed
@@ -1332,60 +1130,6 @@ struct HomeView: View {
         .modernCard()
     }
 
-    private var historyCard: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("最近记录")
-                .font(.headline)
-            
-            if store.state.sessions.isEmpty {
-                HStack {
-                    Spacer()
-                    VStack(spacing: 8) {
-                        Image(systemName: "clock.arrow.circlepath")
-                            .font(.largeTitle)
-                            .foregroundStyle(.gray.opacity(0.3))
-                        Text("还没有训练记录")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.vertical, 20)
-            } else {
-                VStack(spacing: 12) {
-                    ForEach(store.state.sessions.sorted(by: { $0.date > $1.date }).prefix(5)) { session in
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(dateString(session.date))
-                                    .font(.subheadline.bold())
-                                Text("强度 Lv.\(session.difficultyLevel)")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            
-                            Spacer()
-                            
-                            let progress = calculateProgress(for: session)
-                            let percentage = Int(progress * 100)
-                            
-                            Text("\(percentage)%")
-                                .font(.caption.bold())
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(progressColor(progress).opacity(0.1))
-                                .foregroundStyle(progressColor(progress))
-                                .clipShape(Capsule())
-                        }
-                        .padding(12)
-                        .background(Color(uiColor: .secondarySystemBackground))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                    }
-                }
-            }
-        }
-        .modernCard()
-    }
-
     private func dateString(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MM月dd日"
@@ -1399,6 +1143,7 @@ struct HomeView: View {
         formatter.timeStyle = .none
         return formatter.string(from: date)
     }
+    
     private func currentWeekDates() -> [Date] {
         let calendar = Calendar.current
         let today = Date()
@@ -1411,228 +1156,437 @@ struct HomeView: View {
             calendar.date(byAdding: .day, value: day, to: monday)
         }
     }
+}
+            
 
-    private func calculateProgress(for session: WorkoutSession) -> Double {
-        let totalSets = Double(session.exercises.reduce(0) { $0 + $1.sets })
-        let completedSets = Double(session.exercises.reduce(0) { $0 + $1.completedSets })
-        return totalSets > 0 ? completedSets / totalSets : 0
-    }
+// MARK: - Subviews
 
-    private func progressColor(_ progress: Double) -> Color {
-        if progress >= 1.0 { return .green }
-        if progress >= 0.5 { return .blue }
-        return .orange
+struct WorkoutHeaderView: View {
+    let profile: UserProfile
+    let session: WorkoutSession
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("今日训练")
+                    .font(.title2.bold())
+                Text(profile.split.displayName)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            HStack(spacing: 4) {
+                Image(systemName: "flame.fill")
+                    .foregroundStyle(.orange)
+                Text("强度 Lv.\(session.difficultyLevel)")
+                    .font(.subheadline.bold())
+                    .foregroundStyle(.orange)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Color.orange.opacity(0.1))
+            .clipShape(Capsule())
+        }
     }
 }
 
-struct DayMiniCard: View {
+struct WarmupSectionView: View {
     @EnvironmentObject private var store: LocalStore
-    let date: Date
-    let profile: UserProfile
-    
-    @State private var showDetail = false
-    private var isToday: Bool { Calendar.current.isDateInToday(date) }
-    private var isTrainingDay: Bool {
-        Planner.shouldTrain(on: date, trainingDays: profile.trainingDays, overrides: store.state.scheduleOverrides)
-    }
+    let warmupExercises: [WorkoutExercise]
+    let session: WorkoutSession
     
     var body: some View {
-        Button {
-            showDetail = true
-        } label: {
-            VStack(spacing: 8) {
-                Text(weekDayString(date))
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "flame.circle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.orange)
+                Text("热身环节")
+                    .font(.headline)
+                Spacer()
+                Text("激活身体，预防受伤")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+            .padding(.bottom, 4)
+            
+            ForEach(warmupExercises) { exercise in
+                WorkoutExerciseCard(exercise: exercise, session: session, isLast: exercise.id == warmupExercises.last?.id, isWarmup: true)
+            }
+        }
+        .padding(.vertical, 8)
+    }
+}
+
+struct WarmupExerciseRow: View {
+    @EnvironmentObject private var store: LocalStore
+    let exercise: WorkoutExercise
+    let sessionDate: Date
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Icon
+            ZStack {
+                Circle()
+                    .fill(Color.orange.opacity(0.1))
+                    .frame(width: 44, height: 44)
                 
-                Text(dayString(date))
-                    .font(.system(.title3, design: .rounded).bold())
-                    .foregroundStyle(isToday ? .white : .primary)
-                    .frame(width: 36, height: 36)
-                    .background(isToday ? Color.blue : Color.clear)
-                    .clipShape(Circle())
-                
-                if isTrainingDay {
-                    let focus = Planner.focusFor(date: date, profile: profile)
-                    Text(focusShortName(focus.type))
-                        .font(.caption2.bold())
-                        .foregroundStyle(.blue)
-                        .lineLimit(1)
+                let iconName = MachineCatalog.iconName(for: exercise.machine)
+                if iconName.starts(with: "figure") {
+                    Image(systemName: iconName)
+                        .font(.system(size: 20))
+                        .foregroundStyle(.orange)
                 } else {
-                    Text("休息")
-                        .font(.caption2)
+                    Image(systemName: "figure.run")
+                        .font(.system(size: 20))
+                        .foregroundStyle(.orange)
+                }
+            }
+            
+            // Info
+            VStack(alignment: .leading, spacing: 4) {
+                Text(exercise.name)
+                    .font(.subheadline.bold())
+                
+                HStack(spacing: 8) {
+                    Label("\(exercise.sets)组", systemImage: "number.circle")
+                    Label("\(exercise.reps)\(exercise.machine == "Treadmill" ? "分钟" : "次")", systemImage: "arrow.clockwise")
+                    if exercise.recommendedLoadKg > 0 {
+                        Label("\(Int(exercise.recommendedLoadKg))kg", systemImage: "scalemass")
+                    }
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            }
+            
+            Spacer()
+            
+            Button {
+                store.updateExercise(on: sessionDate, exerciseId: exercise.id) { target in
+                    target.completedSets = target.completedSets == 0 ? target.sets : 0
+                }
+                let generator = UIImpactFeedbackGenerator(style: .light)
+                generator.impactOccurred()
+            } label: {
+                Image(systemName: exercise.completedSets >= exercise.sets ? "checkmark.circle.fill" : "circle")
+                    .font(.title2)
+                    .foregroundStyle(exercise.completedSets >= exercise.sets ? .orange : Color.secondary)
+            }
+        }
+        .padding(12)
+        .background(Color.orange.opacity(0.05))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(Color.orange.opacity(0.2), lineWidth: 1)
+        )
+    }
+}
+
+struct LegacyWarmupView: View {
+    let warmupItems: [String]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: "figure.walk")
+                    .foregroundStyle(.orange)
+                Text("热身建议")
+                    .font(.headline)
+            }
+            
+            ForEach(warmupItems, id: \.self) { item in
+                HStack(alignment: .top, spacing: 8) {
+                    Text("•")
+                        .foregroundStyle(.secondary)
+                    Text(item)
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
             }
-            .frame(width: 60, height: 90)
-            .background(Color(uiColor: .secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
-        .buttonStyle(.plain)
-        .sheet(isPresented: $showDetail) {
-            NavigationStack {
-                DayDetailView(date: date, profile: profile)
-            }
-            .presentationDetents([.medium, .large])
-        }
-    }
-    private func isManualOverride(for date: Date) -> Bool {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let dateStr = formatter.string(from: date)
-        return store.state.scheduleOverrides[dateStr] != nil
-    }
-
-    private func weekDayString(_ date: Date) -> String {
-
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEE"
-        formatter.locale = Locale(identifier: "zh_CN")
-        return formatter.string(from: date)
-    }
-    
-    private func dayString(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "d"
-        return formatter.string(from: date)
-    }
-    
-    private func focusShortName(_ type: FocusType) -> String {
-        switch type {
-        case .fullBody: return "全身"
-        case .push: return "推"
-        case .pull: return "拉"
-        case .legs: return "腿"
-        case .upper: return "上肢"
-        case .lower: return "下肢"
-        }
+        .padding(.vertical, 8)
     }
 }
 
-struct DayDetailView: View {
+
+
+struct WorkoutExerciseCard: View {
     @EnvironmentObject private var store: LocalStore
-    let date: Date
-    let profile: UserProfile
+    let exercise: WorkoutExercise
+    let session: WorkoutSession
+    let isLast: Bool
+    var isWarmup: Bool = false
     
-    private var session: WorkoutSession? {
-        if let existing = store.state.sessions.session(on: date) {
-            return existing
-        }
-        if Planner.shouldTrain(on: date, trainingDays: profile.trainingDays, overrides: store.state.scheduleOverrides) {
-            return Planner.workout(
-                for: date,
-                profile: profile,
-                progress: store.state.progress,
-                loadOverrides: store.state.machineLoads,
-                repsOverrides: store.state.machineReps,
-                machinePreferences: store.state.machinePreferences
-            )
-        }
-        return nil
-    }
+    @State private var showRPEGuide = false
+    @State private var showPlateCalculator = false
+    @State private var plateCalculatorTargetWeight: Double = 20.0
+    @State private var plateCalculatorMachineName: String = "配重助手"
+    @State private var plateCalculatorLoadType: MachineLoadType = .stack(increment: 5)
+    @State private var showWaterReminder = false
     
     var body: some View {
-        ScrollView {
-            VStack(spacing: 20) {
-                if let session = session {
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack {
-                            Text("训练详情")
-                                .font(.title2.bold())
-                            Spacer()
-                            HStack(spacing: 4) {
-                                Image(systemName: "flame.fill")
-                                    .foregroundStyle(.orange)
-                                Text("强度 Lv.\(session.difficultyLevel)")
-                                    .font(.subheadline.bold())
-                                    .foregroundStyle(.orange)
+        VStack(alignment: .leading, spacing: 16) {
+            // Exercise Header
+            HStack(alignment: .center, spacing: 16) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(isWarmup ? Color.orange.opacity(0.05) : Color.blue.opacity(0.05))
+                        .frame(width: 80, height: 80)
+                    
+                    Image(MachineCatalog.iconName(for: exercise.machine))
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .padding(4)
+                        .frame(width: 80, height: 80)
+                        .foregroundStyle(isWarmup ? .orange : .blue)
+                        .background(Color.clear)
+                }
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .top) {
+                        Text(exercise.name)
+                            .font(.headline)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer()
+                        Menu {
+                            let equivalents = MachineCatalog.equivalents(for: exercise.machine)
+                            ForEach(equivalents) { option in
+                                let load = store.state.machineLoads[option.id] ?? exercise.recommendedLoadKg
+                                let reps = store.state.machineReps[option.id] ?? exercise.reps
+                                Button("\(option.displayName) (\(String(format: "%.1f", load))kg · \(reps)次)") {
+                                    store.updateExercise(on: session.date, exerciseId: exercise.id) { target in
+                                        target.machine = option.id
+                                        target.name = option.displayName
+                                        target.recommendedLoadKg = load
+                                        target.reps = reps
+                                    }
+                                    if let info = MachineCatalog.info(for: option.id) {
+                                        store.setMachinePreference(for: info.group.rawValue, machineId: option.id)
+                                    }
+                                }
                             }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Color.orange.opacity(0.1))
-                            .clipShape(Capsule())
+                        } label: {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .font(.caption)
+                                .padding(6)
+                                .background(Color(.secondarySystemBackground))
+                                .clipShape(Circle())
                         }
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("器械：\(MachineCatalog.displayName(for: exercise.machine))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                         
-                        Divider()
+                        Text(MachineCatalog.englishName(for: exercise.machine))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .italic()
                         
-                        ForEach(session.exercises) { exercise in
-                            HStack(spacing: 16) {
-                                ZStack {
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(Color.blue.opacity(0.05))
-                                        .frame(width: 80, height: 80)
-                                    
-                                    Image(MachineCatalog.iconName(for: exercise.machine))
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .padding(4)
-                                        .frame(width: 80, height: 80)
-                                        .foregroundStyle(.blue)
-                                        .background(Color.clear)
-                                }
-                                
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(exercise.name)
-                                        .font(.headline)
-                                        .lineLimit(2)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                    
-                                    Text("\(exercise.sets)组 × \(exercise.reps)次 • \(String(format: "%.1f", exercise.recommendedLoadKg))kg")
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
+                        Text(MachineCatalog.description(for: exercise.machine))
+                            .font(.caption2)
+                            .foregroundStyle(isWarmup ? .orange : .blue)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    
+                    HStack(spacing: 4) {
+                        Text("\(exercise.sets)组 × \(exercise.reps)次 • 休息\(exercise.restSeconds)s • RPE \(String(format: "%.1f", exercise.targetRPE))")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button {
+                            showRPEGuide = true
+                        } label: {
+                            Image(systemName: "info.circle")
+                                .font(.caption)
+                                .foregroundStyle(isWarmup ? .orange : .blue)
+                        }
+                    }
+                    .padding(.top, 2)
+                }
+            }
+
+            // Data Display
+            HStack(spacing: 20) {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack {
+                        Text("重量")
+                            .font(.caption2)
+                            .textCase(.uppercase)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button {
+                            plateCalculatorTargetWeight = exercise.recommendedLoadKg
+                            if let info = MachineCatalog.info(for: exercise.machine) {
+                                plateCalculatorMachineName = info.displayName
+                                plateCalculatorLoadType = info.loadType
+                            } else {
+                                plateCalculatorMachineName = exercise.name
+                                plateCalculatorLoadType = .stack(increment: 5)
                             }
-                            .padding()
+                            showPlateCalculator = true
+                        } label: {
+                            Image(systemName: "scalemass.fill")
+                                .font(.caption2)
+                                .foregroundStyle(isWarmup ? .orange : .blue)
+                        }
+                    }
+                    Text("\(String(format: "%.1f", exercise.recommendedLoadKg))")
+                        .font(.system(.title2, design: .rounded).bold()) +
+                    Text(" kg").font(.caption).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(isWarmup ? Color.orange.opacity(0.05) : Color(uiColor: .secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("目标次数")
+                        .font(.caption2)
+                        .textCase(.uppercase)
+                        .foregroundStyle(.secondary)
+                    Text("\(exercise.reps)")
+                        .font(.system(.title2, design: .rounded).bold()) +
+                    Text(" 次").font(.caption).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .background(isWarmup ? Color.orange.opacity(0.05) : Color(uiColor: .secondarySystemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+
+            // Progress and Controls
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("组数进度")
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("\(exercise.completedSets) / \(exercise.sets)")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(exercise.completedSets >= exercise.sets ? (isWarmup ? Color.green : Color.purple) : Color.secondary)
+                }
+                
+                IncrementalProgressView(completed: exercise.completedSets, target: exercise.sets)
+                
+                HStack(spacing: 12) {
+                    Button {
+                        if exercise.completedSets > 0 {
+                            store.updateExercise(on: session.date, exerciseId: exercise.id) { target in
+                                target.completedSets -= 1
+                            }
+                            store.markSessionCompleted(on: session.date)
+                            let generator = UIImpactFeedbackGenerator(style: .light)
+                            generator.impactOccurred()
+                        }
+                    } label: {
+                        Image(systemName: "arrow.uturn.backward")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 50, height: 50)
                             .background(Color(uiColor: .secondarySystemBackground))
                             .clipShape(RoundedRectangle(cornerRadius: 12))
+                    }
+                    .disabled(exercise.completedSets == 0)
+                    .opacity(exercise.completedSets == 0 ? 0.5 : 1.0)
+                    
+                    Button {
+                        store.updateExercise(on: session.date, exerciseId: exercise.id) { target in
+                            target.completedSets += 1
                         }
+                        store.markSessionCompleted(on: session.date)
+                        
+                        let totalSets = session.exercises.reduce(0) { $0 + $1.completedSets }
+                        if totalSets > 0 && totalSets % 6 == 0 {
+                            withAnimation {
+                                showWaterReminder = true
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                                withAnimation {
+                                    showWaterReminder = false
+                                }
+                            }
+                        }
+                        
+                        if exercise.completedSets + 1 == exercise.sets {
+                            let generator = UINotificationFeedbackGenerator()
+                            generator.notificationOccurred(.success)
+                        } else if exercise.completedSets + 1 > exercise.sets {
+                            let generator = UIImpactFeedbackGenerator(style: .heavy)
+                            generator.impactOccurred()
+                        } else {
+                            let generator = UIImpactFeedbackGenerator(style: .medium)
+                            generator.impactOccurred()
+                            
+                            TimerManager.shared.startTimer(seconds: exercise.restSeconds)
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "plus.circle.fill")
+                            Text("完成一组")
+                        }
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
+                        .background(exercise.completedSets >= exercise.sets ? (isWarmup ? Color.green : Color.purple) : (isWarmup ? Color.orange : Color.blue))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .shadow(color: (exercise.completedSets >= exercise.sets ? (isWarmup ? Color.green : Color.purple) : (isWarmup ? Color.orange : Color.blue)).opacity(0.2), radius: 5, x: 0, y: 2)
                     }
-                    .padding()
-                } else {
-                    VStack(spacing: 16) {
-                        Image(systemName: "moon.stars.fill")
-                            .font(.system(size: 60))
-                            .foregroundStyle(.indigo.opacity(0.3))
-                        Text("休息日")
-                            .font(.title2.bold())
-                            .foregroundStyle(.secondary)
-                        Text("好好休息，为下次训练做准备")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 60)
+                }
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("备注")
+                        .font(.caption.bold())
+                        .foregroundStyle(.secondary)
+                    
+                    TextField("添加动作备注...", text: Binding(
+                        get: { exercise.notes },
+                        set: { newValue in
+                            store.updateExercise(on: session.date, exerciseId: exercise.id) { target in
+                                target.notes = newValue
+                            }
+                        }
+                    ), axis: .vertical)
+                    .font(.caption)
+                    .padding(8)
+                    .background(Color(uiColor: .tertiarySystemBackground))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
             }
         }
-        .navigationTitle(dateString(date))
-        .navigationBarTitleDisplayMode(.inline)
+        .padding(12)
+        .overlay(alignment: .top) {
+            if showWaterReminder {
+                HStack {
+                    Image(systemName: "drop.fill")
+                        .foregroundStyle(.blue)
+                    Text("记得喝水补充水分哦 💧")
+                        .font(.subheadline.bold())
+                }
+                .padding()
+                .background(.ultraThinMaterial)
+                .clipShape(Capsule())
+                .shadow(radius: 5)
+                .padding(.top, -30)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .zIndex(200)
+            }
+        }
+        .sheet(isPresented: $showRPEGuide) {
+            RPEGuideView()
+        }
+        .sheet(isPresented: $showPlateCalculator) {
+            MachineWeightHelperView(targetWeight: $plateCalculatorTargetWeight, machineName: plateCalculatorMachineName, loadType: plateCalculatorLoadType)
+        }
+        
+        if !isLast {
+            Divider().padding(.bottom, 8)
+        }
     }
-    private func calculateProgress(for session: WorkoutSession) -> Double {
-        guard !session.exercises.isEmpty else { return 0 }
-        let totalSets = session.exercises.reduce(0) { $0 + $1.sets }
-        let completedSets = session.exercises.reduce(0) { $0 + $1.completedSets }
-        return totalSets > 0 ? Double(completedSets) / Double(totalSets) : 0
-    }
-    
-    private func progressColor(_ progress: Double) -> Color {
-        if progress >= 1.0 { return .green }
-        if progress > 0 { return .blue }
-        return .gray
-    }
-
-    private func dateString(_ date: Date) -> String {
-
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MM月dd日"
-        return formatter.string(from: date)
-    }
-}
-
-#Preview {
-    ContentView()
-        .environmentObject(LocalStore())
 }
 
 // MARK: - WeeklyScheduleView
@@ -1855,4 +1809,138 @@ struct DayRowView: View {
         if level < 15 { return "进阶强化期" }
         return "高强度突破期"
     }
+}
+
+struct DayDetailView: View {
+    @EnvironmentObject private var store: LocalStore
+    let date: Date
+    let profile: UserProfile
+    
+    private var session: WorkoutSession? {
+        if let existing = store.state.sessions.session(on: date) {
+            return existing
+        }
+        if Planner.shouldTrain(on: date, trainingDays: profile.trainingDays, overrides: store.state.scheduleOverrides) {
+            return Planner.workout(
+                for: date,
+                profile: profile,
+                progress: store.state.progress,
+                loadOverrides: store.state.machineLoads,
+                repsOverrides: store.state.machineReps,
+                machinePreferences: store.state.machinePreferences
+            )
+        }
+        return nil
+    }
+    
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                if let session = session {
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Text("训练详情")
+                                .font(.title2.bold())
+                            Spacer()
+                            HStack(spacing: 4) {
+                                Image(systemName: "flame.fill")
+                                    .foregroundStyle(.orange)
+                                Text("强度 Lv.\(session.difficultyLevel)")
+                                    .font(.subheadline.bold())
+                                    .foregroundStyle(.orange)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.orange.opacity(0.1))
+                            .clipShape(Capsule())
+                        }
+                        
+                        Divider()
+                        
+                        ForEach(session.exercises) { exercise in
+                            HStack(spacing: 16) {
+                                ZStack {
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(Color.blue.opacity(0.05))
+                                        .frame(width: 80, height: 80)
+                                    
+                                    Image(MachineCatalog.iconName(for: exercise.machine))
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fit)
+                                        .padding(4)
+                                        .frame(width: 80, height: 80)
+                                        .foregroundStyle(.blue)
+                                        .background(Color.clear)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text(exercise.name)
+                                        .font(.headline)
+                                        .lineLimit(2)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                    
+                                    HStack {
+                                        Text("\(exercise.sets)组 × \(exercise.reps)次")
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                        Text("•")
+                                            .foregroundStyle(.tertiary)
+                                        Text("\(String(format: "%.1f", exercise.recommendedLoadKg))kg")
+                                            .font(.subheadline.bold())
+                                            .foregroundStyle(.primary)
+                                    }
+                                    
+                                    // 进度展示
+                                    HStack(spacing: 8) {
+                                        ProgressView(value: Double(exercise.completedSets), total: Double(exercise.sets))
+                                            .tint(exercise.completedSets >= exercise.sets ? .green : .blue)
+                                            .scaleEffect(x: 1, y: 2, anchor: .center) // 稍微加粗进度条
+                                            .frame(height: 4)
+                                            .clipShape(Capsule())
+                                        
+                                        Text("\(exercise.completedSets)/\(exercise.sets)")
+                                            .font(.caption.monospacedDigit())
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding(.top, 4)
+                                }
+                                Spacer()
+                            }
+                            .padding()
+                            .background(Color(uiColor: .secondarySystemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                        }
+                    }
+                    .padding()
+                } else {
+                    VStack(spacing: 16) {
+                        Image(systemName: "moon.stars.fill")
+                            .font(.system(size: 60))
+                            .foregroundStyle(.indigo.opacity(0.3))
+                        Text("休息日")
+                            .font(.title2.bold())
+                            .foregroundStyle(.secondary)
+                        Text("好好休息，为下次训练做准备")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 60)
+                }
+            }
+        }
+        .navigationTitle(dateString(date))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+    
+    private func dateString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM月dd日"
+        return formatter.string(from: date)
+    }
+}
+
+#Preview {
+    ContentView()
+        .environmentObject(LocalStore())
 }

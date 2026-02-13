@@ -49,7 +49,19 @@ enum MachineCatalog {
         .init("Biceps Curl", displayName: "二头弯举机", englishName: "Biceps Curl", iconName: "MachineIcons/Biceps_Curl", group: .arms, description: "孤立锻炼肱二头肌", loadType: .stack(increment: 5)),
         .init("Triceps Extension", displayName: "三头伸展机", englishName: "Triceps Extension", iconName: "MachineIcons/Triceps_Extension", group: .arms, description: "针对肱三头肌长头", loadType: .stack(increment: 5)),
         .init("Reverse Curl", displayName: "反握弯举机", englishName: "Reverse Curl", iconName: "MachineIcons/Reverse_Curl", group: .arms, description: "锻炼前臂与肱肌", loadType: .stack(increment: 5)),
-        .init("Ab Crunch", displayName: "腹肌卷腹机", englishName: "Ab Crunch", iconName: "MachineIcons/Ab_Crunch", group: .core, description: "锻炼腹直肌", loadType: .stack(increment: 5))
+        .init("Ab Crunch", displayName: "腹肌卷腹机", englishName: "Ab Crunch", iconName: "MachineIcons/Ab_Crunch", group: .core, description: "锻炼腹直肌", loadType: .stack(increment: 5)),
+        
+        // Warmup & Cardio
+        .init("Treadmill", displayName: "跑步机", englishName: "Treadmill", iconName: "figure.run", group: .cardio, description: "有氧热身，提升体温", loadType: .plateLoaded), // Using plateLoaded as placeholder for 'manual'
+        .init("Shoulder Circle", displayName: "肩部环绕", englishName: "Shoulder Circle", iconName: "figure.cooldown", group: .warmup, description: "活动肩关节", loadType: .plateLoaded),
+        .init("Face Pull", displayName: "面拉", englishName: "Face Pull", iconName: "figure.strengthtraining.functional", group: .shoulders, description: "激活肩袖肌群与后束", loadType: .stack(increment: 2.5)),
+        .init("Push Up", displayName: "俯卧撑", englishName: "Push Up", iconName: "figure.pushup", group: .chest, description: "激活胸肌与三头肌", loadType: .plateLoaded),
+        .init("Scapular Pull Up", displayName: "肩胛骨引体", englishName: "Scapular Pull Up", iconName: "figure.arms.open", group: .back, description: "激活背部与肩胛骨", loadType: .plateLoaded),
+        .init("Straight Arm Pulldown", displayName: "直臂下压", englishName: "Straight Arm Pulldown", iconName: "figure.core.training", group: .back, description: "激活背阔肌", loadType: .stack(increment: 2.5)),
+        .init("Squat Jump", displayName: "深蹲跳", englishName: "Squat Jump", iconName: "figure.jumprope", group: .legs, description: "激活腿部爆发力", loadType: .plateLoaded),
+        .init("Hip Mobility", displayName: "髋关节活动", englishName: "Hip Mobility", iconName: "figure.flexibility", group: .warmup, description: "打开髋关节", loadType: .plateLoaded),
+        .init("Air Squat", displayName: "空手深蹲", englishName: "Air Squat", iconName: "figure.squat", group: .legs, description: "激活下肢肌群", loadType: .plateLoaded),
+        .init("Jumping Jack", displayName: "开合跳", englishName: "Jumping Jack", iconName: "figure.mixed.cardio", group: .cardio, description: "全身热身，提升心率", loadType: .plateLoaded)
     ]
 
     static func info(for machineId: String) -> MachineInfo? {
@@ -74,6 +86,6 @@ enum MachineCatalog {
     }
 
     static func iconName(for machineId: String) -> String {
-        info(for: machineId)?.iconName ?? "MachineIcons/Leg_Press"
+        info(for: machineId)?.iconName ?? "figure.strengthtraining.traditional"
     }
 }

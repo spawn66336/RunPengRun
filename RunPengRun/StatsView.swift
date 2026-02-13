@@ -253,6 +253,8 @@ extension PrimaryGroup {
         case .calves: return "小腿"
         case .arms: return "手臂"
         case .core: return "核心"
+        case .warmup: return "热身"
+        case .cardio: return "有氧"
         }
     }
 }

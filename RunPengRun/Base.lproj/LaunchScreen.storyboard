@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="22505" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
+    <device id="retina6_12" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="22504"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="System colors in document resources" minToolsVersion="11.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <scenes>
+        <!--View Controller-->
+        <scene sceneID="EHf-IW-A2E">
+            <objects>
+                <viewController id="01J-lp-oVM" sceneMemberID="viewController">
+                    <view key="view" contentMode="scaleToFill" id="Ze5-6b-2t3">
+                        <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                        <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                        <subviews>
+                            <!-- Background Image (Fill) -->
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Splash" translatesAutoresizingMaskIntoConstraints="NO" id="BgI-vW-sYq">
+                                <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                            </imageView>
+                            
+                            <!-- Blur Effect -->
+                            <visualEffectView opaque="NO" contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="vE8-bF-sYq">
+                                <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                                <view key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" insetsLayoutMarginsFromSafeArea="NO" id="content">
+                                    <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                                    <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+                                    <subviews>
+                                        <!-- Dark Overlay -->
+                                        <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="overlay">
+                                            <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                                            <color key="backgroundColor" red="0.0" green="0.0" blue="0.0" alpha="0.2" colorSpace="custom" customColorSpace="sRGB"/>
+                                        </view>
+                                    </subviews>
+                                    <constraints>
+                                        <constraint firstItem="overlay" firstAttribute="leading" secondItem="content" secondAttribute="leading" id="O1"/>
+                                        <constraint firstAttribute="bottom" secondItem="overlay" secondAttribute="bottom" id="O2"/>
+                                        <constraint firstAttribute="trailing" secondItem="overlay" secondAttribute="trailing" id="O3"/>
+                                        <constraint firstItem="overlay" firstAttribute="top" secondItem="content" secondAttribute="top" id="O4"/>
+                                    </constraints>
+                                </view>
+                                <blurEffect style="regular"/>
+                            </visualEffectView>
+                            
+                            <!-- Foreground Image (Fit) -->
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="Splash" translatesAutoresizingMaskIntoConstraints="NO" id="FwG-xW-sYq">
+                                <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
+                            </imageView>
+                        </subviews>
+                        <viewLayoutGuide key="safeArea" id="6Tk-OE-BBY"/>
+                        <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+                        <constraints>
+                            <!-- Background Constraints -->
+                            <constraint firstAttribute="bottom" secondItem="BgI-vW-sYq" secondAttribute="bottom" id="1"/>
+                            <constraint firstItem="BgI-vW-sYq" firstAttribute="top" secondItem="Ze5-6b-2t3" secondAttribute="top" id="2"/>
+                            <constraint firstItem="BgI-vW-sYq" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" id="3"/>
+                            <constraint firstAttribute="trailing" secondItem="BgI-vW-sYq" secondAttribute="trailing" id="4"/>
+                            
+                            <!-- Blur Constraints -->
+                            <constraint firstAttribute="bottom" secondItem="vE8-bF-sYq" secondAttribute="bottom" id="5"/>
+                            <constraint firstItem="vE8-bF-sYq" firstAttribute="top" secondItem="Ze5-6b-2t3" secondAttribute="top" id="6"/>
+                            <constraint firstItem="vE8-bF-sYq" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" id="7"/>
+                            <constraint firstAttribute="trailing" secondItem="vE8-bF-sYq" secondAttribute="trailing" id="8"/>
+                            
+                            <!-- Foreground Constraints -->
+                            <constraint firstItem="FwG-xW-sYq" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" id="9"/>
+                            <constraint firstAttribute="trailing" secondItem="FwG-xW-sYq" secondAttribute="trailing" id="10"/>
+                            <constraint firstAttribute="bottom" secondItem="FwG-xW-sYq" secondAttribute="bottom" id="11"/>
+                            <constraint firstItem="FwG-xW-sYq" firstAttribute="top" secondItem="Ze5-6b-2t3" secondAttribute="top" id="12"/>
+                        </constraints>
+                    </view>
+                </viewController>
+                <placeholder placeholderIdentifier="IBFirstResponder" id="iYj-Kq-Ea1" userLabel="First Responder" sceneMemberID="firstResponder"/>
+            </objects>
+            <point key="canvasLocation" x="53" y="375"/>
+        </scene>
+    </scenes>
+    <resources>
+        <image name="Splash" width="128" height="128"/>
+        <systemColor name="systemBackgroundColor">
+            <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+        </systemColor>
+    </resources>
+</document>
